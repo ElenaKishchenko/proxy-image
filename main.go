@@ -2,9 +2,19 @@ package main
 
 import (
 	"fmt"
+	"proxy-image/handler"
+	"net/http"
+	"io"
+	"bytes"
+	"strconv"
+	"mime/multipart"
 )
 
 
+
 func main() {
-	fmt.Printf("hello")
+
+	http.HandleFunc("/", handler)
+	err := http.ListenAndServe(":8080", nil)
+	fmt.Println(err)
 }
