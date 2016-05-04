@@ -4,17 +4,15 @@ import (
 	"fmt"
 	"proxy-image/handler"
 	"net/http"
-	"io"
-	"bytes"
-	"strconv"
-	"mime/multipart"
+	"gopkg.in/gographics/imagick.v2/imagick"
 )
 
 
 
 func main() {
+	imagick.Initialize()
 
-	http.HandleFunc("/", handler)
+	http.HandleFunc("/", handler.Handler)
 	err := http.ListenAndServe(":8080", nil)
 	fmt.Println(err)
 }
