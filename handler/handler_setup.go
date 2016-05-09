@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"strings"
 )
-var typeTable = [3]string{"image/jpeg", "image/png", "image/gif"}
-
 
 func (this *ProxyHandler) Setup(maxWorker int) error {
 	results := make(chan error, maxWorker)
@@ -62,22 +60,13 @@ func (this *ProxyHandler) Handler(w http.ResponseWriter, r *http.Request) {
 
 			w.Write([]byte("success"))
 		}
-	//} else if r.URL.Query().Get("mode") == "file" {
-	} else {
+	} else if r.URL.Query().Get("mode") == "file" {
 
-		urlstr :=  "http://static.ngs.ru" + r.URL.String() // r.URL.String()
+		fmt.Println("Content-Type = " + r.Header.Get("Content-Type"))
+		//fmt.Println(r.Header.Get("Content-Lenght"))
 
-		resp, err := http.Get(urlstr)
-		if err != nil {
-			writeError(w, err)
-			return
-		}
-		defer resp.Body.Close()
-
-		fmt.Println("Content-Type = " + resp.Header.Get("Content-Type"))
-		//fmt.Println(resp.Header.Get("Content-Lenght"))
 		var imgType string
-		switch strings.ToLower(resp.Header.Get("Content-Type")) {
+		switch strings.ToLower(r.Header.Get("Content-Type")) {
 		case "image/jpeg":
 			imgType = ".jpg"
 		case "image/png":
@@ -85,24 +74,24 @@ func (this *ProxyHandler) Handler(w http.ResponseWriter, r *http.Request) {
 		case "image/gif":
 			imgType = ".gif"
 		default:
-			err = errors.New("No image")
+			err := errors.New("No image")
 			writeError(w, err)
 			return
 		}
 
-		if resp.ContentLength == 0 {
-			err = errors.New("Body empty")
+		if r.ContentLength == 0 {
+			err := errors.New("Body empty")
 			writeError(w, err)
 			return
 		} else {
-			body, err := ioutil.ReadAll(resp.Body) //r.Body
+			body, err := ioutil.ReadAll(r.Body) //r.Body
 			if err != nil {
 				writeError(w, err)
 				return
 			}
 
 			var task Task
-			task.url = urlstr
+			task.url = r.URL.String()
 			task.imgBlob = body
 			task.imgType = imgType
 			task.method = r.Method
@@ -117,6 +106,7 @@ func (this *ProxyHandler) Handler(w http.ResponseWriter, r *http.Request) {
 }
 
 func writeError(w http.ResponseWriter, err error) {
+	fmt.Println(err)
 	w.Header().Set("Content-Type","text/plain")
 	w.Write([]byte(err.Error()))
 }

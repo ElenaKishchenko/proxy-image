@@ -3,12 +3,12 @@ package handler
 import (
 	"bytes"
 	"crypto/md5"
+	"encoding/hex"
+	"fmt"
 	"gopkg.in/gographics/imagick.v2/imagick"
 	"io/ioutil"
 	"net/http"
 	"os"
-	"fmt"
-	"encoding/hex"
 )
 
 const SERVER2 = "http://docker.local:8080"
@@ -28,29 +28,31 @@ type Task struct {
 }
 
 func (this *Task) Exec() error {
-
+	var newImage []byte
 	rawMd5 := md5.Sum(this.imgBlob)
 	nameMd5 := hex.EncodeToString(rawMd5[:])
 	filename := "/tmp/" + nameMd5 + this.imgType
-	fmt.Println(filename)
 	if _, err := os.Stat(filename); os.IsNotExist(err) {
-		fmt.Println("write file")
-		err := ioutil.WriteFile(filename, this.imgBlob, 0644)
-		if err != nil {
-			return err
-		}
-		fmt.Println("resize")
 		newImage, err := ResizeImg(this.imgBlob)
 		if err != nil {
 			return err
 		}
-
-		strUrl := SERVER2 + "?metod=file&filename=" + this.url //SERVERWWW + r.URL.String()
-
-		_, err = http.Post(strUrl, this.cType, bytes.NewBuffer(newImage))
+		err = ioutil.WriteFile(filename, newImage, 0644)
 		if err != nil {
 			return err
 		}
+
+	}
+	newImage, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return err
+	}
+
+	strUrl := SERVER2 + this.url
+	fmt.Println(strUrl)
+	_, err = http.Post(strUrl, this.cType, bytes.NewBuffer(newImage))
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -60,9 +62,7 @@ func ResizeImg(imageData []byte) ([]byte, error) {
 	imagick.Initialize()
 	defer imagick.Terminate()
 	var err error
-
 	mw := imagick.NewMagickWand()
-
 	err = mw.ReadImageBlob(imageData)
 	if err != nil {
 		return nil, err
