@@ -10,15 +10,6 @@ import (
 	"io/ioutil"
 )
 
-const SERVER2 = "http://babythai.ru/export/exchange1c.php"
-const PATHHOME = "/tmp/"
-
-type ProxyHandler struct {
-	worksCount int32
-	errors     []error
-	Tasks      chan Task
-}
-
 type Task struct {
 	url     string
 	imgBlob []byte
@@ -29,14 +20,14 @@ type Task struct {
 	hCookie string
 }
 
-func (this *Task) Exec() error {
+func (this *Task) Exec(serverUrl string, pathSave string, maxWidth uint) error {
 	var newImage []byte
 	rawMd5 := md5.Sum(this.imgBlob)
 	nameMd5 := hex.EncodeToString(rawMd5[:])
-	filename := PATHHOME + nameMd5 + this.imgType
+	filename := pathSave + nameMd5 + this.imgType
 
 	if _, err := os.Stat(filename); os.IsNotExist(err) {
-		newImage, err := ResizeImg(this.imgBlob)
+		newImage, err := ResizeImg(this.imgBlob, maxWidth)
 		if err != nil {
 			return err
 		}
@@ -52,7 +43,7 @@ func (this *Task) Exec() error {
 		return err
 	}
 
-	strUrl := SERVER2 + this.url
+	strUrl := serverUrl + this.url
 
 	req, err := http.NewRequest(this.method, strUrl, bytes.NewBuffer(newImage))
 	req.Header.Set("Authorization", this.hAuth)
@@ -69,7 +60,7 @@ func (this *Task) Exec() error {
 	return nil
 }
 
-func ResizeImg(imageData []byte) ([]byte, error) {
+func ResizeImg(imageData []byte, maxWidth uint) ([]byte, error) {
 	imagick.Initialize()
 	defer imagick.Terminate()
 	var err error
@@ -81,9 +72,9 @@ func ResizeImg(imageData []byte) ([]byte, error) {
 	width := mw.GetImageWidth()
 	height := mw.GetImageHeight()
 
-	if width > 1024 {
-		hWidth := uint(1024)
-		hHeight := uint(1024 * height / width)
+	if width > maxWidth {
+		hWidth := maxWidth
+		hHeight := uint(maxWidth * height / width)
 
 		err = mw.ResizeImage(hWidth, hHeight, imagick.FILTER_LANCZOS, 1)
 		if err != nil {

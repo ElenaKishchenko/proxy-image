@@ -11,6 +11,15 @@ import (
 	"path/filepath"
 )
 
+type ProxyHandler struct {
+	worksCount int32
+	Server string
+	PathTmp string
+	ImgMaxWidht uint
+	errors     []error
+	Tasks      chan Task
+}
+
 func (this *ProxyHandler) Setup(maxWorker int) error {
 	results := make(chan error, maxWorker)
 	this.Tasks = make(chan Task, maxWorker)
@@ -18,7 +27,7 @@ func (this *ProxyHandler) Setup(maxWorker int) error {
 	for i := 0; i < maxWorker; i++ {
 		go func() {
 			for task := range this.Tasks {
-				results <- task.Exec()
+				results <- task.Exec(this.Server,this.PathTmp,this.ImgMaxWidht)
 			}
 		}()
 	}
@@ -50,7 +59,7 @@ func (this *ProxyHandler) Handler(w http.ResponseWriter, r *http.Request) {
 			}
 			w.Write([]byte(resErrors))
 		} else {
-			sendReturn(w, r)
+			sendReturn(w, r, this.Server)
 		}
 
 	} else if r.URL.Query().Get("mode") == "file" && filepath.Ext(r.URL.Query().Get("filename")) != ".xml" {
@@ -90,7 +99,7 @@ func (this *ProxyHandler) Handler(w http.ResponseWriter, r *http.Request) {
 
 	} else {
 
-		sendReturn(w, r)
+		sendReturn(w, r, this.Server)
 	}
 }
 
@@ -100,13 +109,13 @@ func writeError(w http.ResponseWriter, err error) {
 	w.Write([]byte(err.Error()))
 }
 
-func sendReturn(w http.ResponseWriter, r *http.Request) {
+func sendReturn(w http.ResponseWriter, r *http.Request, serverUrl string) {
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		writeError(w, err)
 		return
 	}
-	req, err := http.NewRequest(r.Method, SERVER2+r.URL.String(), bytes.NewBuffer(body))
+	req, err := http.NewRequest(r.Method, serverUrl + r.URL.String(), bytes.NewBuffer(body))
 	//req.Header = r.Header
 	req.Header.Set("Authorization", r.Header.Get("Authorization"))
 	req.Header.Set("Content-Type", r.Header.Get("Content-Type"))

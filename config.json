@@ -1,0 +1,6 @@
+{
+  "Server": "http://babythai.ru/export/exchange1c.php",
+  "Path": "/tmp/",
+  "ImgMaxWidht": 1024,
+  "MaxQueue": 10
+}
