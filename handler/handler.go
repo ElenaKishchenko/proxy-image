@@ -2,16 +2,16 @@ package handler
 
 import (
 	"bytes"
+	"gopkg.in/gographics/imagick.v2/imagick"
+	"net/http"
 	"crypto/md5"
 	"encoding/hex"
-	"fmt"
-	"gopkg.in/gographics/imagick.v2/imagick"
-	"io/ioutil"
-	"net/http"
 	"os"
+	"io/ioutil"
 )
 
-const SERVER2 = "http://docker.local:8080"
+const SERVER2 = "http://babythai.ru/export/exchange1c.php"
+const PATHHOME = "/tmp/"
 
 type ProxyHandler struct {
 	worksCount int32
@@ -25,35 +25,46 @@ type Task struct {
 	imgType string
 	method  string
 	cType   string
+	hAuth   string
+	hCookie string
 }
 
 func (this *Task) Exec() error {
 	var newImage []byte
 	rawMd5 := md5.Sum(this.imgBlob)
 	nameMd5 := hex.EncodeToString(rawMd5[:])
-	filename := "/tmp/" + nameMd5 + this.imgType
+	filename := PATHHOME + nameMd5 + this.imgType
+
 	if _, err := os.Stat(filename); os.IsNotExist(err) {
 		newImage, err := ResizeImg(this.imgBlob)
 		if err != nil {
 			return err
 		}
+
 		err = ioutil.WriteFile(filename, newImage, 0644)
 		if err != nil {
 			return err
 		}
-
 	}
+
 	newImage, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return err
 	}
 
 	strUrl := SERVER2 + this.url
-	fmt.Println(strUrl)
-	_, err = http.Post(strUrl, this.cType, bytes.NewBuffer(newImage))
+
+	req, err := http.NewRequest(this.method, strUrl, bytes.NewBuffer(newImage))
+	req.Header.Set("Authorization", this.hAuth)
+	req.Header.Set("Content-Type", this.cType)
+	req.Header.Set("Cookie", this.hCookie)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 
 	return nil
 }
